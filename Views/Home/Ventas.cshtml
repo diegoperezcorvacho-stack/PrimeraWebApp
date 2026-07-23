@@ -1,0 +1,120 @@
+@{
+    ViewData["Title"] = "Módulo de Ventas";
+    var productos = ViewBag.ListaProductos as List<dynamic> ?? new List<dynamic>();
+    var categorias = productos.Select(p => (string)p.Categoria).Distinct().ToList();
+}
+
+<div class="container mt-4" style="max-width: 650px;">
+    
+    @* Alertas TempData *@
+    @if (TempData["MensajeExito"] != null)
+    {
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            <i class="bi bi-check-circle-fill me-2"></i>@TempData["MensajeExito"]
+            @if (TempData["GananciaObtenida"] != null)
+            {
+                <br /><strong>Total cobrado: $@TempData["GananciaObtenida"]</strong>
+            }
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    }
+
+    @if (TempData["MensajeError"] != null)
+    {
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            <i class="bi bi-exclamation-triangle-fill me-2"></i>@TempData["MensajeError"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    }
+
+    <div class="card shadow-sm border-primary">
+        <div class="card-header bg-primary text-white d-flex align-items-center">
+            <h4 class="mb-0"><i class="bi bi-cart-check-fill me-2"></i> Módulo de Ventas y Salidas</h4>
+        </div>
+        <div class="card-body p-4">
+            
+            <form asp-action="VenderProducto" method="post">
+                
+                <!-- Selector de Producto agrupado por Categoría -->
+                <div class="mb-3">
+                    <label class="form-label fw-bold">Seleccionar Producto por Categoría</label>
+                    <select id="selectProducto" name="productoId" class="form-select form-select-lg" required onchange="actualizarCalculos()">
+                        <option value="" data-precio="0" data-stock="0" selected disabled>-- Seleccione un producto --</option>
+                        
+                        @foreach (var cat in categorias)
+                        {
+                            <optgroup label="📁 @cat">
+                                @foreach (var prod in productos.Where(p => p.Categoria == cat))
+                                {
+                                    <option value="@prod.Id" data-precio="@prod.Precio" data-stock="@prod.Stock">
+                                        @prod.Nombre (Stock: @prod.Stock | $@prod.Precio.ToString("N0"))
+                                    </option>
+                                }
+                            </optgroup>
+                        }
+                    </select>
+                </div>
+
+                <!-- Detalles dinámicos del producto seleccionado -->
+                <div id="infoProducto" class="alert alert-light border d-none d-flex justify-content-between align-items-center mb-3">
+                    <span>Precio Unitario: <strong id="lblPrecio" class="text-primary">$0</strong></span>
+                    <span>Stock Disponible: <strong id="lblStock" class="text-secondary">0</strong></span>
+                </div>
+
+                <!-- Cantidad a Vender -->
+                <div class="mb-3">
+                    <label class="form-label fw-bold">Cantidad a Vender</label>
+                    <input type="number" id="inputCantidad" name="cantidadVendida" class="form-control form-control-lg" 
+                           min="1" placeholder="Ingrese unidades" required oninput="actualizarCalculos()" />
+                </div>
+
+                <!-- Total a Pagar Calculado Dinámicamente -->
+                <div class="card bg-light border-0 mb-4">
+                    <div class="card-body text-center py-3">
+                        <span class="text-muted text-uppercase fw-bold d-block mb-1" style="font-size: 0.85rem;">Total a Cobrar</span>
+                        <h2 class="text-success fw-bolder mb-0">$<span id="lblTotal">0</span></h2>
+                    </div>
+                </div>
+
+                <!-- Botón de Acción -->
+                <button type="submit" class="btn btn-primary btn-lg w-100 fw-bold">
+                    <i class="bi bi-currency-dollar"></i> Procesar Venta y Restar Stock
+                </button>
+            </form>
+
+        </div>
+    </div>
+</div>
+
+<!-- Script en línea para cálculo dinámico del valor total -->
+<script>
+    function actualizarCalculos() {
+        const select = document.getElementById('selectProducto');
+        const option = select.options[select.selectedIndex];
+        
+        const precio = parseFloat(option.getAttribute('data-precio')) || 0;
+        const stock = parseInt(option.getAttribute('data-stock')) || 0;
+        const cantidadInput = document.getElementById('inputCantidad');
+        let cantidad = parseInt(cantidadInput.value) || 0;
+
+        const infoDiv = document.getElementById('infoProducto');
+        const lblPrecio = document.getElementById('lblPrecio');
+        const lblStock = document.getElementById('lblStock');
+        const lblTotal = document.getElementById('lblTotal');
+
+        if (select.value) {
+            infoDiv.classList.remove('d-none');
+            lblPrecio.textContent = '$' + precio.toLocaleString('es-CL');
+            lblStock.textContent = stock + ' un.';
+            
+            // Ajustar el límite máximo del input según el stock
+            cantidadInput.max = stock;
+        } else {
+            infoDiv.classList.add('d-none');
+        }
+
+        // Calcular Total
+        const total = precio * cantidad;
+        lblTotal.textContent = total.toLocaleString('es-CL');
+    }
+</script>

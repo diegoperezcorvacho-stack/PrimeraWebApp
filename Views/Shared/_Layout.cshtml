@@ -1,0 +1,76 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"] - Comercializadora Arica S.A.</title>
+    <script type="importmap"></script>
+    <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/PrimeraWebApp.styles.css" asp-append-version="true" />
+</head>
+<body>
+    <header>
+        <nav class="navbar navbar-expand-sm navbar-toggleable-sm navbar-dark bg-dark border-bottom box-shadow mb-3">
+            <div class="container-fluid">
+                <a class="navbar-brand text-success font-weight-bold" asp-area="" asp-controller="Home" asp-action="Index">
+                    <i class="bi bi-flower1"></i> Asoagro S.A.
+                </a>
+                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target=".navbar-collapse" aria-controls="navbarSupportedContent"
+                        aria-expanded="false" aria-label="Toggle navigation">
+                    <span class="navbar-toggler-icon"></span>
+                </button>
+
+                <div class="navbar-collapse collapse d-sm-inline-flex justify-content-between">
+                    <ul class="navbar-nav flex-grow-1">
+                        <li class="nav-item">
+                            <a class="nav-link text-white" asp-area="" asp-controller="Home" asp-action="Index">
+                                <i class="bi bi-box-seam"></i> Inventario de Insumos
+                            </a>
+                        </li>
+
+                        <li class="nav-item">
+                            <a class="nav-link text-white" asp-area="" asp-controller="Home" asp-action="Ventas">
+                                <i class="bi bi-cart-check"></i> Realizar Ventas
+                            </a>
+                        </li>
+
+                        <li class="nav-item">
+                            <a class="nav-link text-white" asp-area="" asp-controller="Home" asp-action="Categorias">
+                                <i class="bi bi-tag"></i> Categorías
+                            </a>
+                        </li>
+                    </ul>
+
+                    <div class="d-flex align-items-center gap-2">
+                        <a class="btn btn-outline-success text-white btn-sm" asp-area="" asp-controller="Home" asp-action="Registrar">
+                            <i class="bi bi-person-plus"></i> Registro de Personal
+                        </a>
+
+                        <a class="btn btn-danger btn-sm px-3 shadow-sm" asp-area="" asp-controller="Home" asp-action="CerrarSesion">
+                            <i class="bi bi-box-arrow-left"></i> Salir
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </nav>
+    </header>
+    <div class="container">
+        <main role="main" class="pb-3">
+            @RenderBody()
+        </main>
+    </div>
+
+    <footer class="border-top footer text-muted bg-light pt-3 pb-3 mt-5">
+        <div class="container text-center">
+            &copy; 2026 - <strong>Comercializadora Arica S.A.</strong> - Proyecto de Transformación Digital (Terminal Agropecuario)
+        </div>
+    </footer>
+
+    <script src="~/lib/jquery/dist/jquery.min.js"></script>
+    <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="~/js/site.js" asp-append-version="true"></script>
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

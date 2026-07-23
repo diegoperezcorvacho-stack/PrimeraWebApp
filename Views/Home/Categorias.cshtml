@@ -1,0 +1,78 @@
+﻿@{
+    ViewData["Title"] = "Gestión de Categorías - Comercializadora Arica S.A.";
+}
+
+<div class="container mt-4">
+    <div class="p-3 my-3 text-white bg-dark rounded shadow-sm">
+        <h4 class="mb-0 text-white">Módulo de Categorías</h4>
+        <small>Clasificación centralizada de Insumos - Terminal Agropecuario (Asoagro)</small>
+    </div>
+
+    @if (TempData["MensajeExito"] != null)
+    {
+        <div class="alert alert-success shadow-sm" role="alert">
+            <i class="bi bi-check-circle-fill"></i> @TempData["MensajeExito"]
+        </div>
+    }
+    @if (TempData["MensajeError"] != null)
+    {
+        <div class="alert alert-danger shadow-sm" role="alert">
+            <i class="bi bi-exclamation-triangle-fill"></i> @TempData["MensajeError"]
+        </div>
+    }
+
+    <div class="row">
+        <div class="col-md-5 mb-4">
+            <div class="card shadow-sm">
+                <div class="card-header bg-success text-white">
+                    <h6 class="mb-0"><i class="bi bi-tag-fill"></i> Nueva Categoría de Insumos</h6>
+                </div>
+                <div class="card-body">
+                    <form asp-action="CrearCategoria" asp-controller="Home" method="POST">
+                        <div class="mb-3">
+                            <label class="form-label font-weight-bold">Nombre de la Categoría</label>
+                            <input type="text" name="nombreCategoria" class="form-control" required placeholder="Ej: Fertilizantes, Semillas, Plaguicidas" />
+                        </div>
+                        <button type="submit" class="btn btn-success btn-block">
+                            <i class="bi bi-plus-lg"></i> Registrar Categoría
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-7">
+            <div class="card shadow-sm">
+                <div class="card-header bg-secondary text-white">
+                    <h6 class="mb-0"><i class="bi bi-list-ul"></i> Categorías Registradas en el Servidor</h6>
+                </div>
+                <div class="card-body">
+                    <table class="table table-hover table-striped">
+                        <thead class="thead-dark">
+                            <tr>
+                                <th>Nombre de la Clasificación</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @if (ViewBag.ListaCategorias != null && ((List<string>)ViewBag.ListaCategorias).Count > 0)
+                            {
+                                foreach (var cat in ViewBag.ListaCategorias)
+                                {
+                                    <tr>
+                                        <td><i class="bi bi-folder-fill text-warning mr-2"></i> @cat</td>
+                                    </tr>
+                                }
+                            }
+                            else
+                            {
+                                <tr>
+                                    <td class="text-center text-muted">No hay categorías registradas aún.</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

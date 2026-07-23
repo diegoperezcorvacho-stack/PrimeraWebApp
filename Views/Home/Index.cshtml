@@ -1,0 +1,125 @@
+﻿@{
+    ViewData["Title"] = "Sistema de Inventario - Comercializadora Arica S.A.";
+}
+
+<div class="container mt-4">
+    <!-- Encabezado Corporativo -->
+    <div class="d-flex align-items-center p-3 my-3 text-white bg-success rounded shadow-sm">
+        <div class="lh-100">
+            <h4 class="mb-0 text-white lh-100">Comercializadora Arica S.A.</h4>
+            <small>Plataforma de Transformación Digital - Terminal Agropecuario (Asoagro)</small>
+        </div>
+    </div>
+
+    <!-- Estado de Conexión a la BD -->
+    @if (ViewBag.MensajeConexion != null)
+    {
+        <div class="alert alert-@ViewBag.EstiloConexion shadow-sm mb-4" role="alert">
+            <h6 class="alert-heading font-weight-bold"><i class="bi bi-cpu"></i> Estado de la Base de Datos Centralizada</h6>
+            <small>@ViewBag.MensajeConexion (Conectado al Puerto Seguro de Producción)</small>
+        </div>
+    }
+
+    <!-- Alertas de Éxito / Error Unificadas -->
+    @if (TempData["MensajeExito"] != null)
+    {
+        <div class="alert alert-success alert-dismissible fade show shadow-sm mb-4" role="alert">
+            <i class="bi bi-check-circle-fill"></i> @TempData["MensajeExito"]
+            @if (TempData["StockRestante"] != null)
+            {
+                <br /><span class="ms-3"><strong>Stock restante en bodega:</strong> @TempData["StockRestante"] unidades.</span>
+            }
+            @if (TempData["GananciaObtenida"] != null || TempData["ValorVenta"] != null)
+            {
+                <br /><span class="ms-3"><strong>Ganancia / Monto generado:</strong> $@(TempData["GananciaObtenida"] ?? TempData["ValorVenta"])</span>
+            }
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    }
+
+    @if (TempData["MensajeError"] != null)
+    {
+        <div class="alert alert-danger alert-dismissible fade show shadow-sm mb-4" role="alert">
+            <i class="bi bi-exclamation-triangle-fill"></i> @TempData["MensajeError"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    }
+
+    <div class="row">
+        <!-- COLUMNA IZQUIERDA: Formulario de Registro de Insumos -->
+        <div class="col-md-8">
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-dark text-white">
+                    <h5 class="mb-0"><i class="bi bi-flower1"></i> Registro e Inserción de Insumos Agrícolas</h5>
+                </div>
+                <div class="card-body">
+                    <form asp-action="Insertar" asp-controller="Home" method="POST">
+                        <div class="row">
+                            <div class="col-md-12 mb-3">
+                                <label class="form-label font-weight-bold">Nombre del Insumo / Producto</label>
+                                <input type="text" name="nombre" class="form-control" required placeholder="Ej: Fertilizante Urea, Saco de Papas, Semillas Tomate" />
+                            </div>
+                            
+                            <!-- Campo para asociar Categoría -->
+                            <div class="col-md-12 mb-3">
+                                <label class="form-label font-weight-bold">Categoría Agrícola</label>
+                                <select name="categoriaId" class="form-select" required>
+                                    <option value="" disabled selected>-- Seleccione una Categoría --</option>
+                                    @if (ViewBag.ListaCategorias != null)
+                                    {
+                                        @foreach (var cat in ViewBag.ListaCategorias)
+                                        {
+                                            <option value="@cat.Id">@cat.Nombre</option>
+                                        }
+                                    }
+                                </select>
+                            </div>
+
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label font-weight-bold">Stock Físico Inicial (Existencias)</label>
+                                <input type="number" name="stock" class="form-control" min="0" required placeholder="Cantidad en unidades/sacos" />
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label font-weight-bold">Precio de Venta Unitario ($)</label>
+                                <input type="number" name="precio" class="form-control" step="0.01" min="0" required placeholder="Ej: 24990" />
+                            </div>
+                        </div>
+                        <div class="text-end">
+                            <button type="submit" class="btn btn-success px-4">
+                                <i class="bi bi-plus-circle"></i> Sincronizar Inventario Físico
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- COLUMNA DERECHA: Reporte de Lote Ingresado -->
+        <div class="col-md-4">
+            <!-- Tarjeta 1: Reporte de Lote Ingresado -->
+            <div class="card border-success shadow-sm mb-4">
+                <div class="card-header bg-success text-white text-center">
+                    <h6 class="mb-0 font-weight-bold"><i class="bi bi-graph-up-arrow"></i> Reporte para Negociación</h6>
+                </div>
+                <div class="card-body text-center">
+                    <p class="text-muted small mb-1">Valor Estimado del Último Lote Ingresado</p>
+                    <h3 class="text-success font-weight-bold">
+                        @if (TempData["ValorLote"] != null)
+                        {
+                            <span>$ @TempData["ValorLote"]</span>
+                        }
+                        else
+                        {
+                            <span>$ 0.00</span>
+                        }
+                    </h3>
+                    <hr />
+                    <div class="text-start small text-muted">
+                        <p class="mb-1"><i class="bi bi-shield-check text-success"></i> <strong>Cero Duplicidad:</strong> Datos guardados en MySQL en tiempo real.</p>
+                        <p class="mb-0"><i class="bi bi-clock-history text-success"></i> <strong>Historial Protegido:</strong> Respaldado automáticamente contra sobrescrituras.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

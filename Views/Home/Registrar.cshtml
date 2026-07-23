@@ -1,0 +1,69 @@
+﻿@model PrimeraWebApp.Models.Usuario
+@{
+    ViewData["Title"] = "Registrar Nuevo Personal - Comercializadora Arica S.A.";
+}
+
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="card shadow border-0 rounded-lg">
+                <div class="card-header bg-dark text-white text-center py-3">
+                    <h4 class="mb-0"><i class="bi bi-person-plus-fill text-success"></i> Registro de Personal Nuevo</h4>
+                    <small class="text-muted">Comercializadora Arica S.A. (Asoagro)</small>
+                </div>
+                <div class="card-body p-4">
+
+                    @if (TempData["MensajeExito"] != null)
+                    {
+                        <div class="alert alert-success alert-dismissible fade show shadow-sm" role="alert">
+                            <i class="bi bi-check-circle-fill me-2"></i> @TempData["MensajeExito"]
+                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                        </div>
+                    }
+
+                    @if (TempData["MensajeError"] != null)
+                    {
+                        <div class="alert alert-danger alert-dismissible fade show shadow-sm" role="alert">
+                            <i class="bi bi-exclamation-triangle-fill me-2"></i> @TempData["MensajeError"]
+                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                        </div>
+                    }
+
+                    <form asp-action="Registrar" asp-controller="Home" method="post">
+                        <div class="mb-3">
+                            <label class="form-label font-weight-bold text-muted small">Nombre del Trabajador</label>
+                            <input name="Nombre" type="text" class="form-control" placeholder="Ej: Miguel" required />
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label font-weight-bold text-muted small">Apellido</label>
+                            <input name="Apellido" type="text" class="form-control" placeholder="Ej: Ayala" required />
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label font-weight-bold text-muted small">Correo Electrónico Corporativo</label>
+                            <input name="Correo" type="email" class="form-control" placeholder="ejemplo@comercializadora.cl" required />
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label font-weight-bold text-muted small">Contraseña de Acceso</label>
+                            <input name="Contraseña" type="password" class="form-control" placeholder="Cree una contraseña segura" required />
+                        </div>
+
+                        <div class="d-grid gap-2 mt-4">
+                            <button type="submit" class="btn btn-success btn-block shadow-sm">
+                                <i class="bi bi-save"></i> Guardar y Dar de Alta
+                            </button>
+                            <a asp-action="Login" asp-controller="Home" class="btn btn-outline-secondary btn-block">
+                                <i class="bi bi-arrow-left"></i> Volver al Inicio de Sesión
+                            </a>
+                        </div>
+                    </form>
+                </div>
+                <div class="card-footer text-center py-2 bg-light border-0">
+                    <small class="text-muted"><i class="bi bi-shield-fill-check text-success"></i> Arquitectura ADO.NET Centralizada</small>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

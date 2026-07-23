@@ -1,0 +1,62 @@
+﻿@{
+    ViewData["Title"] = "Iniciar Sesión - Comercializadora Arica S.A.";
+}
+
+<div class="row justify-content-center mt-5">
+    <div class="col-md-5">
+        <div class="card shadow border-0 rounded-lg">
+            <div class="card-header bg-success text-white text-center py-4">
+                <h4 class="font-weight-light my-1"><i class="bi bi-shield-lock-fill"></i> Acceso al Sistema</h4>
+                <small class="text-white-50">Plataforma de Inventario - Comercializadora Arica S.A.</small>
+            </div>
+
+            <div class="card-body p-4">
+                @if (ViewBag.ErrorLogin != null)
+                {
+                    <div class="alert alert-danger shadow-sm text-center small mb-3" role="alert">
+                        <i class="bi bi-exclamation-octagon-fill"></i> @ViewBag.ErrorLogin
+                    </div>
+                }
+
+                <form asp-action="Login" asp-controller="Home" method="POST">
+                    <div class="form-group mb-3">
+                        <label class="form-label small font-weight-bold text-muted">Correo Electrónico Corporativo</label>
+                        <div class="input-group">
+                            <span class="input-group-text bg-light"><i class="bi bi-envelope"></i></span>
+                            <input type="email" name="correo" class="form-control" placeholder="nombre@comercializadora.cl" required />
+                        </div>
+                    </div>
+
+                    <div class="form-group mb-4">
+                        <label class="form-label small font-weight-bold text-muted">Contraseña</label>
+                        <div class="input-group">
+                            <span class="input-group-text bg-light"><i class="bi bi-key"></i></span>
+                            <input type="password" name="contraseña" class="form-control" placeholder="••••••••" required />
+                        </div>
+                    </div>
+
+                    <div class="d-grid gap-2 mb-3">
+                        <button type="submit" class="btn btn-success py-2 font-weight-bold shadow-sm">
+                            <i class="bi bi-box-arrow-in-right"></i> Ingresar al Sistema
+                        </button>
+                    </div>
+
+                    <hr class="my-4" />
+
+                    <div class="text-center">
+                        <p class="text-muted small mb-2">¿Eres un trabajador nuevo en el almacén?</p>
+                        <a asp-action="Registrar" asp-controller="Home" class="btn btn-outline-dark btn-sm px-4">
+                            <i class="bi bi-person-plus-fill"></i> Registrar Nueva Cuenta
+                        </a>
+                    </div>
+                </form>
+            </div>
+
+            <div class="card-footer text-center py-3 bg-light border-0">
+                <div class="small text-muted">
+                    <i class="bi bi-lock text-success"></i> Servidor Seguro MySQL habilitado en Puerto 3308
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

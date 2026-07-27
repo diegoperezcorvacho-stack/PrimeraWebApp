@@ -4,6 +4,7 @@ using Microsoft.Extensions.Configuration;
 using System.Diagnostics;
 using System.Data; // Asegura compatibilidad de tipos de datos en la conexión
 using PrimeraWebApp.Models;
+using System.Text.Json;
 
 namespace PrimeraWebApp.Controllers
 {
@@ -126,30 +127,60 @@ namespace PrimeraWebApp.Controllers
         [HttpGet]
         public IActionResult Categorias()
         {
-            List<string> listaCategorias = new List<string>();
-            string query = "SELECT nombre FROM categoria ORDER BY nombre ASC";
+            var listaCategorias = new List<dynamic>();
+            var listaProductos = new List<dynamic>();
 
             try
             {
                 using (MySqlConnection conexion = new MySqlConnection(_connectionString))
                 {
-                    using (MySqlCommand comando = new MySqlCommand(query, conexion))
+                    conexion.Open();
+
+                    // 1. Obtener lista de categorías (ID y Nombre)
+                    string queryCategorias = "SELECT id, nombre FROM categoria ORDER BY nombre ASC";
+                    using (MySqlCommand cmdCat = new MySqlCommand(queryCategorias, conexion))
                     {
-                        conexion.Open();
-                        using (MySqlDataReader lector = comando.ExecuteReader())
+                        using (MySqlDataReader lectorCat = cmdCat.ExecuteReader())
                         {
-                            while (lector.Read())
+                            while (lectorCat.Read())
                             {
-                                listaCategorias.Add(lector["nombre"].ToString());
+                                listaCategorias.Add(new
+                                {
+                                    Id = Convert.ToInt32(lectorCat["id"]),
+                                    Nombre = lectorCat["nombre"].ToString()
+                                });
+                            }
+                        }
+                    }
+
+                    // 2. Obtener productos con su stock y categoría asignada
+                    string queryProductos = "SELECT id, nombre, stock, precio, categoria_id FROM producto";
+                    using (MySqlCommand cmdProd = new MySqlCommand(queryProductos, conexion))
+                    {
+                        using (MySqlDataReader lectorProd = cmdProd.ExecuteReader())
+                        {
+                            while (lectorProd.Read())
+                            {
+                                listaProductos.Add(new
+                                {
+                                    Id = Convert.ToInt32(lectorProd["id"]),
+                                    Nombre = lectorProd["nombre"].ToString(),
+                                    Stock = Convert.ToInt32(lectorProd["stock"]),
+                                    Precio = Convert.ToDecimal(lectorProd["precio"]),
+                                    CategoriaId = lectorProd["categoria_id"] != DBNull.Value ? (int?)Convert.ToInt32(lectorProd["categoria_id"]) : null
+                                });
                             }
                         }
                     }
                 }
+
+                // Pasar ambas listas a la vista mediante ViewBag
                 ViewBag.ListaCategorias = listaCategorias;
+                ViewBag.ListaProductos = listaProductos;
             }
             catch (Exception ex)
             {
-                TempData["MensajeError"] = "Error al leer categorías centralizadas: " + ex.Message;
+                TempData["MensajeError"] = "Error al leer categorías y productos: " + ex.Message;
             }
 
             return View();
@@ -349,76 +380,270 @@ namespace PrimeraWebApp.Controllers
             return View();
         }
 
-        // =========================================================================
-        // MÓDULO DE VENTAS (POST - ÚNICA INSTANCIA REVISADA)
-        // =========================================================================
         [HttpPost]
-        public IActionResult VenderProducto(int productoId, int cantidadVendida)
+        public IActionResult VenderProducto(List<int> productoIds, List<int> cantidades, string nombreCliente)
         {
+            if (productoIds == null || productoIds.Count == 0)
+            {
+                TempData["MensajeError"] = "Por favor, seleccione al menos un producto para vender.";
+                return RedirectToAction("Ventas");
+            }
+
+            string clienteFinal = string.IsNullOrWhiteSpace(nombreCliente) ? "Cliente General" : nombreCliente.Trim();
+            string codigoBoleta = "BOL-" + Guid.NewGuid().ToString().Substring(0, 8).ToUpper();
+            decimal totalCobrado = 0;
+            var listaDetalles = new List<object>();
+
             try
             {
                 using (MySqlConnection conexion = new MySqlConnection(_connectionString))
                 {
                     conexion.Open();
-                    int stockActual = 0;
-                    decimal precioUnitario = 0;
 
-                    string querySelect = "SELECT stock, precio FROM producto WHERE id = @id";
-                    using (MySqlCommand cmd = new MySqlCommand(querySelect, conexion))
+                    using (var transaccion = conexion.BeginTransaction())
                     {
-                        cmd.Parameters.AddWithValue("@id", productoId);
-                        using (var reader = cmd.ExecuteReader())
+                        try
                         {
-                            if (reader.Read())
+                            for (int i = 0; i < productoIds.Count; i++)
                             {
-                                stockActual = Convert.ToInt32(reader["stock"]);
-                                precioUnitario = Convert.ToDecimal(reader["precio"]);
+                                int prodId = productoIds[i];
+                                int cantidad = cantidades[i];
+
+                                if (cantidad <= 0) continue;
+
+                                string queryBuscar = "SELECT nombre, precio, stock FROM producto WHERE id = @id";
+                                string nombreProd = "";
+                                decimal precioUnitario = 0;
+                                int stockActual = 0;
+
+                                using (MySqlCommand cmdBuscar = new MySqlCommand(queryBuscar, conexion, transaccion))
+                                {
+                                    cmdBuscar.Parameters.AddWithValue("@id", prodId);
+                                    using (var reader = cmdBuscar.ExecuteReader())
+                                    {
+                                        if (reader.Read())
+                                        {
+                                            nombreProd = reader["nombre"].ToString();
+                                            precioUnitario = Convert.ToDecimal(reader["precio"]);
+                                            stockActual = Convert.ToInt32(reader["stock"]);
+                                        }
+                                        else
+                                        {
+                                            throw new Exception($"El producto con ID {prodId} no existe.");
+                                        }
+                                    }
+                                }
+
+                                if (stockActual < cantidad)
+                                {
+                                    throw new Exception($"Stock insuficiente para {nombreProd}.");
+                                }
+
+                                // 1. Descontar stock
+                                string queryUpdate = "UPDATE producto SET stock = stock - @cantidad WHERE id = @id";
+                                using (MySqlCommand cmdUpdate = new MySqlCommand(queryUpdate, conexion, transaccion))
+                                {
+                                    cmdUpdate.Parameters.AddWithValue("@cantidad", cantidad);
+                                    cmdUpdate.Parameters.AddWithValue("@id", prodId);
+                                    cmdUpdate.ExecuteNonQuery();
+                                }
+
+                                decimal subtotal = precioUnitario * cantidad;
+                                totalCobrado += subtotal;
+
+                                // 2. INSERT EN VENTA (Incluyendo la columna comprador)
+                                string queryInsertVenta = @"INSERT INTO venta (producto_id, cantidad_vendida, precio_venta, ganancia_total, comprador, fecha_venta) 
+                                                   VALUES (@producto_id, @cantidad, @precio, @ganancia, @comprador, NOW())";
+
+                                using (MySqlCommand cmdVenta = new MySqlCommand(queryInsertVenta, conexion, transaccion))
+                                {
+                                    cmdVenta.Parameters.AddWithValue("@producto_id", prodId);
+                                    cmdVenta.Parameters.AddWithValue("@cantidad", cantidad);
+                                    cmdVenta.Parameters.AddWithValue("@precio", precioUnitario);
+                                    cmdVenta.Parameters.AddWithValue("@ganancia", subtotal);
+                                    cmdVenta.Parameters.AddWithValue("@comprador", clienteFinal); // <-- AQUÍ SE GUARDA EL NOMBRE
+                                    cmdVenta.ExecuteNonQuery();
+                                }
+
+                                // 3. Preparar lista para el JSON de la boleta
+                                listaDetalles.Add(new
+                                {
+                                    Producto = nombreProd,
+                                    Cantidad = cantidad,
+                                    PrecioUnitario = precioUnitario,
+                                    Subtotal = subtotal
+                                });
                             }
-                            else
+
+                            // 4. Guardar en la tabla boleta
+                            string jsonDetalle = JsonSerializer.Serialize(listaDetalles);
+                            string queryBoleta = @"INSERT INTO boleta (codigo_boleta, usuario_nombre, total, detalle_json) 
+                                           VALUES (@codigo, @usuario, @total, @detalle)";
+
+                            using (MySqlCommand cmdBoleta = new MySqlCommand(queryBoleta, conexion, transaccion))
                             {
-                                TempData["MensajeError"] = "El producto seleccionado no existe.";
-                                return RedirectToAction("Ventas");
+                                cmdBoleta.Parameters.AddWithValue("@codigo", codigoBoleta);
+                                cmdBoleta.Parameters.AddWithValue("@usuario", clienteFinal);
+                                cmdBoleta.Parameters.AddWithValue("@total", totalCobrado);
+                                cmdBoleta.Parameters.AddWithValue("@detalle", jsonDetalle);
+                                cmdBoleta.ExecuteNonQuery();
                             }
+
+                            transaccion.Commit();
+
+                            TempData["MensajeExito"] = $"¡Venta realizada con éxito! Boleta N°: {codigoBoleta}";
+                            TempData["GananciaObtenida"] = totalCobrado.ToString("N0");
+                        }
+                        catch (Exception ex)
+                        {
+                            transaccion.Rollback();
+                            TempData["MensajeError"] = "Error procesando la venta: " + ex.Message;
                         }
                     }
-
-                    if (stockActual < cantidadVendida)
-                    {
-                        TempData["MensajeError"] = $"Stock insuficiente. Solo quedan {stockActual} unidades disponibles.";
-                        return RedirectToAction("Ventas");
-                    }
-
-                    int nuevoStock = stockActual - cantidadVendida;
-                    decimal ganancia = cantidadVendida * precioUnitario;
-
-                    string queryUpdate = "UPDATE producto SET stock = @nuevoStock WHERE id = @id";
-                    using (MySqlCommand cmdUpdate = new MySqlCommand(queryUpdate, conexion))
-                    {
-                        cmdUpdate.Parameters.AddWithValue("@nuevoStock", nuevoStock);
-                        cmdUpdate.Parameters.AddWithValue("@id", productoId);
-                        cmdUpdate.ExecuteNonQuery();
-                    }
-
-                    string queryVenta = "INSERT INTO venta (producto_id, cantidad_vendida, precio_venta, ganancia_total, fecha_venta) VALUES (@pId, @cant, @precio, @ganancia, NOW())";
-                    using (MySqlCommand cmdVenta = new MySqlCommand(queryVenta, conexion))
-                    {
-                        cmdVenta.Parameters.AddWithValue("@pId", productoId);
-                        cmdVenta.Parameters.AddWithValue("@cant", cantidadVendida);
-                        cmdVenta.Parameters.AddWithValue("@precio", precioUnitario);
-                        cmdVenta.Parameters.AddWithValue("@ganancia", ganancia);
-                        cmdVenta.ExecuteNonQuery();
-                    }
-
-                    TempData["MensajeExito"] = $"¡Venta procesada exitosamente! Stock restante: {nuevoStock} unidades.";
-                    TempData["GananciaObtenida"] = ganancia.ToString("N0");
                 }
             }
             catch (Exception ex)
             {
-                TempData["MensajeError"] = "Error al registrar la venta: " + ex.Message;
+                TempData["MensajeError"] = "Error de conexión: " + ex.Message;
             }
 
             return RedirectToAction("Ventas");
+        }
+
+        // 2. NUEVA ACCIÓN: PÁGINA Y BUSCADOR DE HISTORIAL DE BOLETAS
+        [HttpGet]
+        public IActionResult HistorialBoletas(string buscarCodigo)
+        {
+            var listaBoletas = new List<dynamic>();
+
+            try
+            {
+                using (MySqlConnection conexion = new MySqlConnection(_connectionString))
+                {
+                    conexion.Open();
+                    string query = "SELECT id, codigo_boleta, usuario_nombre, fecha, total, detalle_json FROM boleta ";
+
+                    if (!string.IsNullOrEmpty(buscarCodigo))
+                    {
+                        query += "WHERE codigo_boleta LIKE @codigo ";
+                    }
+                    query += "ORDER BY fecha DESC";
+
+                    using (MySqlCommand cmd = new MySqlCommand(query, conexion))
+                    {
+                        if (!string.IsNullOrEmpty(buscarCodigo))
+                        {
+                            cmd.Parameters.AddWithValue("@codigo", "%" + buscarCodigo.Trim() + "%");
+                        }
+
+                        using (var reader = cmd.ExecuteReader())
+                        {
+                            while (reader.Read())
+                            {
+                                listaBoletas.Add(new
+                                {
+                                    Id = Convert.ToInt32(reader["id"]),
+                                    Codigo = reader["codigo_boleta"].ToString(),
+                                    Usuario = reader["usuario_nombre"].ToString(),
+                                    Fecha = Convert.ToDateTime(reader["fecha"]),
+                                    Total = Convert.ToDecimal(reader["total"]),
+                                    Detalle = reader["detalle_json"].ToString()
+                                });
+                            }
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                TempData["MensajeError"] = "Error al cargar historial: " + ex.Message;
+            }
+
+            ViewBag.BuscarCodigo = buscarCodigo;
+            ViewBag.ListaBoletas = listaBoletas;
+            return View();
+        }
+        [HttpPost]
+        public IActionResult EliminarCategoria(string nombreCategoria)
+        {
+            if (string.IsNullOrEmpty(nombreCategoria))
+            {
+                TempData["MensajeError"] = "Categoría no válida.";
+                return RedirectToAction("Categorias");
+            }
+
+            try
+            {
+                using (MySqlConnection conexion = new MySqlConnection(_connectionString))
+                {
+                    conexion.Open();
+
+                    using (var transaccion = conexion.BeginTransaction())
+                    {
+                        try
+                        {
+                            // 1. Obtener el ID de la categoría por su nombre
+                            int categoriaId = 0;
+                            string queryBuscarId = "SELECT id FROM categoria WHERE nombre = @nombre";
+                            using (MySqlCommand cmdId = new MySqlCommand(queryBuscarId, conexion, transaccion))
+                            {
+                                cmdId.Parameters.AddWithValue("@nombre", nombreCategoria);
+                                var result = cmdId.ExecuteScalar();
+                                if (result != null)
+                                {
+                                    categoriaId = Convert.ToInt32(result);
+                                }
+                            }
+
+                            if (categoriaId > 0)
+                            {
+                                // 2. Eliminar primero las ventas vinculadas a los productos de esta categoría
+                                string queryVentas = @"DELETE FROM venta 
+                                              WHERE producto_id IN (SELECT id FROM producto WHERE categoria_id = @catId)";
+                                using (MySqlCommand cmdVentas = new MySqlCommand(queryVentas, conexion, transaccion))
+                                {
+                                    cmdVentas.Parameters.AddWithValue("@catId", categoriaId);
+                                    cmdVentas.ExecuteNonQuery();
+                                }
+
+                                // 3. Eliminar los productos pertenecientes a esta categoría
+                                string queryProductos = "DELETE FROM producto WHERE categoria_id = @catId";
+                                using (MySqlCommand cmdProd = new MySqlCommand(queryProductos, conexion, transaccion))
+                                {
+                                    cmdProd.Parameters.AddWithValue("@catId", categoriaId);
+                                    cmdProd.ExecuteNonQuery();
+                                }
+
+                                // 4. Eliminar la categoría
+                                string queryCategoria = "DELETE FROM categoria WHERE id = @catId";
+                                using (MySqlCommand cmdCat = new MySqlCommand(queryCategoria, conexion, transaccion))
+                                {
+                                    cmdCat.Parameters.AddWithValue("@catId", categoriaId);
+                                    cmdCat.ExecuteNonQuery();
+                                }
+
+                                transaccion.Commit();
+                                TempData["MensajeExito"] = $"La categoría '{nombreCategoria}', sus productos y su historial de ventas fueron eliminados con éxito.";
+                            }
+                            else
+                            {
+                                TempData["MensajeError"] = "No se encontró la categoría especificada.";
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            transaccion.Rollback();
+                            TempData["MensajeError"] = "Error al eliminar: " + ex.Message;
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                TempData["MensajeError"] = "Error de conexión: " + ex.Message;
+            }
+
+            return RedirectToAction("Categorias");
         }
     }
 }

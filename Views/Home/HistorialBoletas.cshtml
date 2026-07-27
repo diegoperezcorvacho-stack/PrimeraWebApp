@@ -1,0 +1,154 @@
+@{
+    ViewData["Title"] = "Historial de Boletas";
+    var boletas = ViewBag.ListaBoletas as List<dynamic> ?? new List<dynamic>();
+}
+
+<div class="container mt-4">
+    <div class="p-3 my-3 text-white bg-dark rounded shadow-sm d-flex justify-content-between align-items-center">
+        <div>
+            <h4 class="mb-0 text-white"><i class="bi bi-receipt me-2"></i>Historial de Boletas</h4>
+            <small>Consulta y búsqueda de comprobantes emitidos</small>
+        </div>
+    </div>
+
+    <!-- BUSCADOR POR CÓDIGO -->
+    <div class="card shadow-sm mb-4">
+        <div class="card-body">
+            <form asp-action="HistorialBoletas" method="get" class="row g-2 align-items-center">
+                <div class="col-md-9">
+                    <div class="input-group">
+                        <span class="input-group-text bg-light"><i class="bi bi-search"></i></span>
+                        <input type="text" name="buscarCodigo" value="@ViewBag.BuscarCodigo" class="form-control form-control-lg" placeholder="Ingrese el código de boleta (Ej: BOL-8F32A)" />
+                    </div>
+                </div>
+                <div class="col-md-3 d-flex gap-2">
+                    <button type="submit" class="btn btn-primary btn-lg w-100 fw-bold">Buscar</button>
+                    <a href="@Url.Action("HistorialBoletas")" class="btn btn-outline-secondary btn-lg">Limpiar</a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- TABLA DE HISTORIAL CON DETALLE VISIBLE -->
+    <div class="card shadow-sm">
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-dark">
+                        <tr>
+                            <th>Código Boleta</th>
+                            <th>Comprador / Cliente</th>
+                            <th>Atendido por</th>
+                            <th>Fecha / Hora</th>
+                            <th>Detalle de Compra</th>
+                            <th class="text-end">Total Cobrado</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @if (boletas.Count > 0)
+                        {
+                            foreach (var b in boletas)
+                            {
+                                string clienteNombre = "Cliente General";
+                                string atendidoPor = b.Usuario != null ? Convert.ToString(b.Usuario) : "Usuario Sistema";
+                                string rawJson = "";
+
+                                try { rawJson = Convert.ToString(b.Detalle) ?? Convert.ToString(b.detalle_json) ?? ""; } catch { }
+
+                                var listaItems = new List<(string Nombre, int Cantidad, decimal Subtotal)>();
+
+                                if (!string.IsNullOrWhiteSpace(rawJson))
+                                {
+                                    try 
+                                    {
+                                        using (var doc = System.Text.Json.JsonDocument.Parse(rawJson))
+                                        {
+                                            var root = doc.RootElement;
+                                            List<System.Text.Json.JsonElement> elementos = new List<System.Text.Json.JsonElement>();
+
+                                            if (root.ValueKind == System.Text.Json.JsonValueKind.Array)
+                                            {
+                                                elementos = root.EnumerateArray().ToList();
+                                            }
+                                            else if (root.ValueKind == System.Text.Json.JsonValueKind.Object)
+                                            {
+                                                if (root.TryGetProperty("Cliente", out var c1)) { clienteNombre = c1.GetString(); }
+                                                else if (root.TryGetProperty("cliente", out var c2)) { clienteNombre = c2.GetString(); }
+
+                                                if (root.TryGetProperty("Items", out var i1) && i1.ValueKind == System.Text.Json.JsonValueKind.Array)
+                                                {
+                                                    elementos = i1.EnumerateArray().ToList();
+                                                }
+                                                else if (root.TryGetProperty("items", out var i2) && i2.ValueKind == System.Text.Json.JsonValueKind.Array)
+                                                {
+                                                    elementos = i2.EnumerateArray().ToList();
+                                                }
+                                                else if (root.TryGetProperty("Productos", out var i3) && i3.ValueKind == System.Text.Json.JsonValueKind.Array)
+                                                {
+                                                    elementos = i3.EnumerateArray().ToList();
+                                                }
+                                            }
+
+                                            // Extraemos los valores ANTES de cerrar el JsonDocument
+                                            foreach (var item in elementos)
+                                            {
+                                                string nombreProd = "Producto";
+                                                int cant = 0;
+                                                decimal sub = 0;
+
+                                                if (item.TryGetProperty("Producto", out var p1)) { nombreProd = p1.GetString(); }
+                                                else if (item.TryGetProperty("producto", out var p2)) { nombreProd = p2.GetString(); }
+                                                else if (item.TryGetProperty("Nombre", out var p3)) { nombreProd = p3.GetString(); }
+
+                                                if (item.TryGetProperty("Cantidad", out var ct1)) { cant = ct1.GetInt32(); }
+                                                else if (item.TryGetProperty("cantidad", out var ct2)) { cant = ct2.GetInt32(); }
+
+                                                if (item.TryGetProperty("Subtotal", out var s1)) { sub = s1.GetDecimal(); }
+                                                else if (item.TryGetProperty("subtotal", out var s2)) { sub = s2.GetDecimal(); }
+
+                                                listaItems.Add((nombreProd, cant, sub));
+                                            }
+                                        }
+                                    } 
+                                    catch { }
+                                }
+
+                                <tr>
+                                    <td><span class="badge bg-primary fs-6">@b.Codigo</span></td>
+                                    <td><i class="bi bi-person-fill text-primary me-1"></i><strong>@clienteNombre</strong></td>
+                                    <td><i class="bi bi-person-badge text-secondary me-1"></i>@atendidoPor</td>
+                                    <td>@b.Fecha.ToString("dd-MM-yyyy HH:mm") hrs</td>
+                                    <td>
+                                        @if (listaItems.Count > 0)
+                                        {
+                                            <ul class="list-unstyled mb-0 small">
+                                                @foreach (var item in listaItems)
+                                                {
+                                                    <li>
+                                                        • <strong>@item.Nombre</strong> x @item.Cantidad un. 
+                                                        <span class="text-muted">($@item.Subtotal.ToString("N0"))</span>
+                                                    </li>
+                                                }
+                                            </ul>
+                                        }
+                                        else
+                                        {
+                                            <span class="text-muted small"><em>Sin detalle disponible</em></span>
+                                        }
+                                    </td>
+                                    <td class="text-end fw-bold text-success fs-5">$@b.Total.ToString("N0")</td>
+                                </tr>
+                            }
+                        }
+                        else
+                        {
+                            <tr>
+                                <td colspan="6" class="text-center text-muted py-4">No se encontraron boletas registradas.</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>

@@ -23,25 +23,35 @@
                 </button>
 
                 <div class="navbar-collapse collapse d-sm-inline-flex justify-content-between">
-                    <ul class="navbar-nav flex-grow-1">
-                        <li class="nav-item">
-                            <a class="nav-link text-white" asp-area="" asp-controller="Home" asp-action="Index">
-                                <i class="bi bi-box-seam"></i> Inventario de Insumos
-                            </a>
-                        </li>
+                <ul class="navbar-nav flex-grow-1">
+    <!-- 1. Inventario de Insumos -->
+    <li class="nav-item">
+        <a class="nav-link text-white" asp-area="" asp-controller="Home" asp-action="Index">
+            <i class="bi bi-box-seam me-1"></i> Inventario de Insumos
+        </a>
+    </li>
 
-                        <li class="nav-item">
-                            <a class="nav-link text-white" asp-area="" asp-controller="Home" asp-action="Ventas">
-                                <i class="bi bi-cart-check"></i> Realizar Ventas
-                            </a>
-                        </li>
+    <!-- 2. Categorías (AHORA SEGUNDO) -->
+    <li class="nav-item">
+        <a class="nav-link text-white" asp-area="" asp-controller="Home" asp-action="Categorias">
+            <i class="bi bi-tag me-1"></i> Categorías
+        </a>
+    </li>
 
-                        <li class="nav-item">
-                            <a class="nav-link text-white" asp-area="" asp-controller="Home" asp-action="Categorias">
-                                <i class="bi bi-tag"></i> Categorías
-                            </a>
-                        </li>
-                    </ul>
+    <!-- 3. Realizar Ventas (AHORA AL ÚLTIMO) -->
+    <li class="nav-item">
+        <a class="nav-link text-white" asp-area="" asp-controller="Home" asp-action="Ventas">
+            <i class="bi bi-cart-check me-1"></i> Realizar Ventas
+        </a>
+    </li>
+
+    <li class="nav-item">
+    <a class="nav-link text-white" asp-area="" asp-controller="Home" asp-action="HistorialBoletas">
+        <i class="bi bi-receipt me-1"></i> Historial de Boletas
+    </a>
+</li>
+
+</ul>
 
                     <div class="d-flex align-items-center gap-2">
                         <a class="btn btn-outline-success text-white btn-sm" asp-area="" asp-controller="Home" asp-action="Registrar">
